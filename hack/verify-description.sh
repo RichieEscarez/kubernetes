@@ -19,8 +19,12 @@ set -o nounset
 set -o pipefail
 
 KUBE_ROOT=$(dirname "${BASH_SOURCE}")/..
+source "${KUBE_ROOT}/hack/lib/init.sh"
 
-cd "${KUBE_ROOT}"
+kube::golang::setup_env
+"${KUBE_ROOT}/hack/build-go.sh" cmd/genswaggertypedocs
+
+genswaggertypedocs=$(kube::util::find-binary "genswaggertypedocs")
 
 result=0
 
@@ -44,9 +48,9 @@ else
 fi
 
 for file in $files; do
-  if grep json: "${file}" | grep -v // | grep -v ,inline | grep -v -q description: ; then
-    echo "API file is missing the required field descriptions: ${file}"
-    result=1
+  $genswaggertypedocs -v -s "${file}" -f - || result=$?
+  if [[ "${result}" -ne "0" ]]; then
+    echo "API file: ${file} is missing: ${result} descriptions"
   fi
 done
 
