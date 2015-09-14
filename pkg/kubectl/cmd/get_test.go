@@ -29,6 +29,7 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/testapi"
+	apitesting "k8s.io/kubernetes/pkg/api/testing"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/client/unversioned/fake"
@@ -39,7 +40,6 @@ import (
 )
 
 func testData() (*api.PodList, *api.ServiceList, *api.ReplicationControllerList) {
-	grace := int64(30)
 	pods := &api.PodList{
 		ListMeta: unversioned.ListMeta{
 			ResourceVersion: "15",
@@ -47,19 +47,11 @@ func testData() (*api.PodList, *api.ServiceList, *api.ReplicationControllerList)
 		Items: []api.Pod{
 			{
 				ObjectMeta: api.ObjectMeta{Name: "foo", Namespace: "test", ResourceVersion: "10"},
-				Spec: api.PodSpec{
-					RestartPolicy:                 api.RestartPolicyAlways,
-					DNSPolicy:                     api.DNSClusterFirst,
-					TerminationGracePeriodSeconds: &grace,
-				},
+				Spec:       apitesting.DeepEqualSafePodSpec(),
 			},
 			{
 				ObjectMeta: api.ObjectMeta{Name: "bar", Namespace: "test", ResourceVersion: "11"},
-				Spec: api.PodSpec{
-					RestartPolicy:                 api.RestartPolicyAlways,
-					DNSPolicy:                     api.DNSClusterFirst,
-					TerminationGracePeriodSeconds: &grace,
-				},
+				Spec:       apitesting.DeepEqualSafePodSpec(),
 			},
 		},
 	}
@@ -596,7 +588,6 @@ func TestGetMultipleTypeObjectsWithDirectReference(t *testing.T) {
 	}
 }
 func watchTestData() ([]api.Pod, []watch.Event) {
-	grace := int64(30)
 	pods := []api.Pod{
 		{
 			ObjectMeta: api.ObjectMeta{
@@ -604,11 +595,7 @@ func watchTestData() ([]api.Pod, []watch.Event) {
 				Namespace:       "test",
 				ResourceVersion: "10",
 			},
-			Spec: api.PodSpec{
-				RestartPolicy:                 api.RestartPolicyAlways,
-				DNSPolicy:                     api.DNSClusterFirst,
-				TerminationGracePeriodSeconds: &grace,
-			},
+			Spec: apitesting.DeepEqualSafePodSpec(),
 		},
 	}
 	events := []watch.Event{
@@ -620,11 +607,7 @@ func watchTestData() ([]api.Pod, []watch.Event) {
 					Namespace:       "test",
 					ResourceVersion: "11",
 				},
-				Spec: api.PodSpec{
-					RestartPolicy:                 api.RestartPolicyAlways,
-					DNSPolicy:                     api.DNSClusterFirst,
-					TerminationGracePeriodSeconds: &grace,
-				},
+				Spec: apitesting.DeepEqualSafePodSpec(),
 			},
 		},
 		{
@@ -635,11 +618,7 @@ func watchTestData() ([]api.Pod, []watch.Event) {
 					Namespace:       "test",
 					ResourceVersion: "12",
 				},
-				Spec: api.PodSpec{
-					RestartPolicy:                 api.RestartPolicyAlways,
-					DNSPolicy:                     api.DNSClusterFirst,
-					TerminationGracePeriodSeconds: &grace,
-				},
+				Spec: apitesting.DeepEqualSafePodSpec(),
 			},
 		},
 	}
@@ -681,7 +660,7 @@ func TestWatchSelector(t *testing.T) {
 	expected := []runtime.Object{&api.PodList{Items: pods}, events[0].Object, events[1].Object}
 	actual := tf.Printer.(*testPrinter).Objects
 	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("unexpected object: %#v %#v", expected[0], actual[0])
+		t.Errorf("unexpected object:\nExpected: %#v\n\nGot: %#v\n\n", expected[0], actual[0])
 	}
 	if len(buf.String()) == 0 {
 		t.Errorf("unexpected empty output")
@@ -719,7 +698,7 @@ func TestWatchResource(t *testing.T) {
 	expected := []runtime.Object{&pods[0], events[0].Object, events[1].Object}
 	actual := tf.Printer.(*testPrinter).Objects
 	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("unexpected object: %#v", actual)
+		t.Errorf("unexpected object:\nExpected: %#v\n\nGot: %#v\n\n", expected, actual)
 	}
 	if len(buf.String()) == 0 {
 		t.Errorf("unexpected empty output")
