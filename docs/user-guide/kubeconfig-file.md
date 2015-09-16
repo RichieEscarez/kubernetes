@@ -33,26 +33,42 @@ Documentation for other releases can be found at
 
 # kubeconfig files
 
-Authentication in kubernetes can differ for different individuals.
+Authentication across Kubernetes can differ, for example:
 
 - A running kubelet might have one way of authenticating (i.e. certificates).
-- Users might have a different way of authenticating (i.e. tokens).
-- Administrators might have a list of certificates which they provide individual users. 
-- There may be multiple clusters, and we may want to define them all in one place - giving users the ability to use their own certificates and reusing the same global configuration.
+- Users might all use a different way of authenticating (i.e. tokens).
+- Administrators might provide individual certificates to users. 
+- For multiple clusters, they might be all defined in a single file that provides users with the ability to use their own certificates. This also has the benefit of simplified global configuration that's shared across all clusters.
 
-So in order to easily switch between multiple clusters, for multiple users, a kubeconfig file was defined.  
+In order to accommodate switching between multiple clusters and supporting the varying number of users and their different methods of authentication, Kubernetes uses a kubeconfig file.
 
-This file contains a series of authentication mechanisms and cluster connection information associated with nicknames.  It also introduces the concept of a tuple of authentication information (user) and cluster connection information called a context that is also associated with a nickname.
+The *kubeconfig file* contains a series of authentication mechanisms for both users and clusters. The file contains tuples of user authentication and cluster connection information that the Kubernetes api-server uses to establish connections. Information for users and clusters are defined under the respective `users` and `clusters` sections. There is also a `contexts` section that defines nicknames for the associated namespaces, clusters, and users.
 
-Multiple kubeconfig files are allowed.  At runtime they are loaded and merged together along with override options specified from the command line (see rules below).
+You can create and use multiple kubeconfig files in your clusters. At runtime the kubeconfig files are loaded and merged together using the override options that you specify. See the [Loading and merging rules](#loading_and_merging_rules) below for more information.
 
-## Related discussion
+####Table of contents:
 
-http://issue.k8s.io/1755
+- [Example kubeconfig file](#example-kubeconfig-file)
+- [Loading and merging rules](#loading-and-merging-rules)
+- [Updating the kubeconfig file with `kubectl config`](#updating-the-kubeconfig-file-with-kubectl-config)
+- [Related discussion](#related-discussion)
+
 
 ## Example kubeconfig file
 
-The below file contains a `current-context` which will be used by default by clients which are using the file to connect to a cluster.  Thus, this kubeconfig file has more information in it then we will necessarily have to use in a given session.  You can see it defines many clusters, and users associated with those clusters.  The context itself is associated with both a cluster AND a user. 
+Lets walk through a few key details in the following example kubeconfig file to help you understand its contents and structure:
+
+ - In this example, the `current-context` option is specified with value `federal-context`. When the `current-context` option is used, by default, all clients that connect to any of the clusters defined in this file use the `federal-context` context.
+
+ - The `federal-context` context specifies `green-user` as the default user. Therefore, any client with the correct certificates that connects to the api-server will be logged in as the green-user because those credentials are specified in the file.  
+In contrast to the green-user who provides a certificate, the blue-user must provide a token to connect.
+
+ - This kubeconfig file corresponds to a Kubernetes api-server that was launched with the `kube-apiserver --token-auth-file=tokens.csv` option, where tokens.csv contains:  
+   ```
+   blue-user,blue-user,1
+   mister-red,mister-red,2
+   ```  
+Note that because each user authenticates using different methods, this api-server was launched with other options in addition to `--token-auth-file`. It is important to understand the different options that you can run in order to implement the authentication schemes. You should run only the options for the authentication methods that align with your security requirements and policies.
 
 ```yaml
 current-context: federal-context
@@ -94,69 +110,58 @@ users:
     client-key: path/to/my/client/key
 ```
 
-### Building your own kubeconfig file
+As you can see, a kubeconfig file can contain more information than what’s necessary for a single session, including details for several clusters, users, and contexts.
 
-NOTE, that if you are deploying k8s via kube-up.sh, you do not need to create your own kubeconfig files, the script will do it for you.
+For more information about kube-apiserver options, see [kube-apiserver](../admin/kube-apiserver.md).
 
-In any case, you can easily use this file as a template to create your own kubeconfig files.  
+### Manually creating kubeconfig files
 
-So, lets do a quick walk through the basics of the above file so you can easily modify it as needed...
+You can easily use the above example as a template for creating your own kubeconfig files. See the [Commands to create our example file](#commands-to-create-our-example-file) section below to re-create this example on your computer.
 
-The above file would likely correspond to an api-server which was launched using the `--token-auth-file=tokens.csv` option, where the tokens.csv file looked something like this:
-
-```
-blue-user,blue-user,1
-mister-red,mister-red,2
-```
-
-Also, since we have other users who validate using **other** mechanisms, the api-server would have probably been launched with other authentication options (there are many such options, make sure you understand which ones YOU care about before crafting a kubeconfig file, as nobody needs to implement all the different permutations of possible authentication schemes).
-
-- Since the user for the current context is "green-user", any client of the api-server using this kubeconfig file would naturally be able to log in succesfully, because we are providigin the green-user's client credentials.  
-- Similarly, we can operate as the "blue-user" if we choose to change the value of current-context.
-
-In the above scenario, green-user would have to log in by providing certificates, whereas blue-user would just provide the token.  All this information would be handled for us by the 
+Remember: Creating a cluster by running `kube-up.sh` creates a kubeconfig file for you. See [Creating a Kubernetes Cluster](../getting-started-guides/README.md) for information about getting started with `kube-up.sh`. 
 
 ## Loading and merging rules
 
-The rules for loading and merging the kubeconfig files are straightforward, but there are a lot of them.  The final config is built in this order:
-  1.  Get the kubeconfig  from disk.  This is done with the following hierarchy and merge rules:
+Your kubeconfig files get loaded and merged based on the commands that you run from the terminal and the information specified in each kubeconfig file.
 
+The following loading and merging rules are ordered by their priority:
 
-      If the CommandLineLocation (the value of the `kubeconfig` command line option) is set, use this file only.  No merging.  Only one instance of this flag is allowed.
+ 1. Retrieve the kubeconfig files from disk using the following hierarchy and merge rules:
+   1. If the `CommandLineLocation` (the value of the `kubeconfig` command line option) is set, then use this file only and do not merge any other kubeconfig files. Only one instance of this flag is allowed in your kubeconfig files.
+   1. If `EnvVarLocation` (the value of $KUBECONFIG) is available, then use it to define all of the files that will be merged.
+   1. Merge the files using the following rules:  
+      * Empty filenames are ignored. Note: Files with non-deserializable content cause errors.
+      * The first time that a particular value or map key is found, then use that value or map key and ignore any subsequent occurrences.  
+        For example, if a file sets `CurrentContext` for the first time, then the context in that file is preserved and any other files that also set `CurrentContext` are ignored. Another example is if two files specify a `red-user`, then only the values from the first file's red-user are used. Even non-conflicting entries from the second file's red-user are ignored and not merged into the final kubeconfig file.
+      * If only a single kubeconfig file exists, then skip merging and use the file in `HomeDirectoryLocation` (~/.kube/config).
+ 1. Determine what context to use based on the following priorities:
+   1. Command line argument (kubectl config): Use the value specified for `context`.
+   1. Kubeconfig file: Use the value specified for `current-context`.
+   1. Set no context if the values are undefined.
+ 1. Determine what user and cluster information to use based on the following priorities:  
+    Note: At this point, the context might be undefined. Also, this check runs twice, once for user and then again for cluster.
+   1. Command line argument (kubectl config): Use the value specified for `user` and `cluster`.
+   1. Kubeconfig file: If `context` is specified, then use the value in the nested `cluster`.
+   1. Set no user and cluster if the values are undefined.
+ 1. Determine the details of the cluster based on the following priorities:  
+    Note: At this point, the cluster might be undefined. Also, value of the first instance found for a cluster attribute is used and all subsequent values are ignored.
+   1. Command line argument (kubectl config): Use the values specified for `server`, `api-version`, `certificate-authority`, and `insecure-skip-tls-verify`.
+   1. Kubeconfig file: Use the values specified in `cluster`.
+   1. Ensure that a value for `server` is defined, otherwise throw an error.
+ 1. Determine the details of the user based on the following priorities:  
+    Note: The value of the first instance found for a user attribute is used and all subsequent values are ignored.
+   1. Command line argument (kubectl config): Use the values specified for `client-certificate`, `client-key`, `username`, `password`, and `token`.
+   1. Kubeconfig file: Use the values specified in `user`.
+   1. Ensure only a single authentication method is defined, otherwise throw an error.
+ 1. For any required information that's missing, either use default values or prompt the user for authentication information.
 
+## Updating the kubeconfig file with `kubectl config`
 
-      Else, if EnvVarLocation (the value of $KUBECONFIG) is available, use it as a list of files that should be merged.
-      Merge files together based on the following rules.
-      Empty filenames are ignored.  Files with non-deserializable content produced errors.
-      The first file to set a particular value or map key wins and the value or map key is never changed.
-      This means that the first file to set CurrentContext will have its context preserved.  It also means that if two files specify a "red-user", only values from the first file's red-user are used.  Even non-conflicting entries from the second file's "red-user" are discarded.
+To easily add, update, or remove details from your kubeconfig files, you can use the `kubectl config` *`subcommand`* commands. See [kubectl/kubectl_config.md](kubectl/kubectl_config.md) for details about all the commands.
 
+### Examples
 
-      Otherwise, use HomeDirectoryLocation (~/.kube/config) with no merging.
-  1.  Determine the context to use based on the first hit in this chain
-      1.  command line argument - the value of the `context` command line option
-      1.  current-context from the merged kubeconfig file
-      1.  Empty is allowed at this stage
-  1.  Determine the cluster info and user to use.  At this point, we may or may not have a context.  They are built based on the first hit in this chain.  (run it twice, once for user, once for cluster)
-      1.  command line argument - `user` for user name and `cluster` for cluster name
-      1.  If context is present, then use the context's value
-      1.  Empty is allowed
-  1.  Determine the actual cluster info to use.  At this point, we may or may not have a cluster info.  Build each piece of the cluster info based on the chain (first hit wins):
-      1.  command line arguments - `server`, `api-version`, `certificate-authority`, and `insecure-skip-tls-verify`
-      1.  If cluster info is present and a value for the attribute is present, use it.
-      1.  If you don't have a server location, error.
-  1.  Determine the actual user info to use. User is built using the same rules as cluster info, EXCEPT that you can only have one authentication technique per user.
-      1. Load precedence is 1) command line flag, 2) user fields from kubeconfig
-      1. The command line flags are: `client-certificate`, `client-key`, `username`, `password`, and `token`.
-      1. If there are two conflicting techniques, fail.
-  1.  For any information still missing, use default values and potentially prompt for authentication information
-
-## Manipulation of kubeconfig via `kubectl config <subcommand>`
-
-In order to more easily manipulate kubeconfig files, there are a series of subcommands to `kubectl config` to help.
-See [kubectl/kubectl_config.md](kubectl/kubectl_config.md) for help.
-
-### Example
+If you run the following commands from the terminal on a computer where a kubeconfig file does not exist:
 
 ```console
 $ kubectl config set-credentials myself --username=admin --password=secret
@@ -164,10 +169,9 @@ $ kubectl config set-cluster local-server --server=http://localhost:8080
 $ kubectl config set-context default-context --cluster=local-server --user=myself
 $ kubectl config use-context default-context
 $ kubectl config set contexts.default-context.namespace the-right-prefix
-$ kubectl config view
 ```
 
-produces this output
+You can then run `$ kubectl config view` to display that configuration information:
 
 ```yaml
 apiVersion: v1
@@ -191,7 +195,7 @@ users:
     username: admin
 ```
 
-and a kubeconfig file that looks like this
+And if you view the actual kubeconfig file, you will see that it contains the same details:
 
 ```yaml
 apiVersion: v1
@@ -215,7 +219,11 @@ users:
     username: admin
 ```
 
-#### Commands for the example file
+#### Commands to create our example file
+
+To re-create the example kubeconfig file that we used in this help topic, you can run the following commands from your terminal:
+
+Tip: To generate a kubeconfig file for your cluster, revise the command options so that they include details about your clusters api-server endpoints.
 
 ```console
 $ kubectl config set preferences.colors true
@@ -229,16 +237,26 @@ $ kubectl config set-context federal-context --cluster=horse-cluster --user=gree
 $ kubectl config use-context federal-context
 ```
 
-### Final notes for tying it all together
+Remember: More information about the `kubectl config` commands, is available in the [kubectl_config](kubectl/kubectl_config.md) topic. 
 
-So, tying this all together, a quick start to creating your own kubeconfig file:
+### Key points to remember
 
-- Take a good look and understand how you're api-server is being launched: You need to know YOUR security requirements and policies before you can design a kubeconfig file for convenient authentication.
+A few important points to keep in mind when creating or configuring your kubeconfig file:
 
-- Replace the snippet above with information for your cluster's api-server endpoint.
+- Before you design a kubeconfig file for convenient authentication, take a good look and really understand how your api-server is being launched to ensure that you meet your security requirements and policies.
 
-- Make sure your api-server is launched in such a way that at least one user (i.e. green-user) credentials are provided to it.  You will of course have to look at api-server documentation in order to determine the current state-of-the-art in terms of providing authentication details.
+- Make sure that your api-server is launched so that at least one user's credentials are defined in it. For example, see our "green-user" in the example above. Review the [Authentication](../admin/authentication.md) topic to better understand how to set up user authentication.
 
+## Related discussion
+
+For in-depth design discussion and to determine if change is in the pipeline, you can review http://issue.k8s.io/1755.
+
+##### Related information
+
+- [Authentication](../admin/authentication.md)
+- [kube-apiserver](../admin/kube-apiserver.md)
+- [Sharing cluster access](../user-guide/sharing-clusters.md)
+- [kubectl_config](kubectl/kubectl_config.md)
 
 
 <!-- BEGIN MUNGE: GENERATED_ANALYTICS -->
