@@ -10,12 +10,12 @@
         left: 40px;
     }
     #wrapper {
-        top: 111px;
+        top: $searchboxheight + 64px;
         z-index: $zNav;
-        background: white;
+        background: $white;
     }
     .bodywrapper{
-        top: 31px;
+        top: 57px;
     }
     body {
         padding-top: 70px;

@@ -1,13 +1,10 @@
 @media #{$md} {
-	.toggleposition {
-		left: 255px;
-	}
 	.bodywrapper{
-        top: 41px;
-		left: 255px;
+        top: 57px;
+        left: 255px;
 	}
 	#wrapper {
-		top: 129px;
+		top: $searchboxheight + 67px;
 		max-width: 255px;
 	}
     .headline {
