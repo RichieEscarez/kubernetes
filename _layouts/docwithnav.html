@@ -1,19 +1,31 @@
 {% include dochead.html %}
-<!-- Search box for Google Custom Search Engine -->
-<div class="gcse-wrapper" id="gcse-searchbox">
-	<gcse:searchbox></gcse:searchbox>
-</div>
-<div class="gcse-wrapper">
-  <gcse:searchresults></gcse:searchresults>
-</div>
-
-<!-- Navigation menu -->
-<div id="wrapper">
-	{% include nav_v1.0.html %}
-</div>
-<!-- Content body -->
-<div class="bodywrapper">
-	{% include documentation.html %}
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-xs-1 hidden-md hidden-lg navbuttonarrow">
+		<!-- Nav menu button for smaller (mobile) views-->
+			<a href="javascript:;" class="togglenav">
+				<img src="{{site.url}}/img/mobile/chevron-right.png" style="display:inline-block"/>
+				<img src="{{site.url}}/img/mobile/chevron-left.png" style="display:none"/>
+			</a>
+		</div>
+		<div class="gcse-wrapper" id="gcse-searchbox">
+			<!-- Search box for Google Custom Search Engine -->
+			<gcse:searchbox></gcse:searchbox>
+		</div>
+	</div>
+	<div class="row">
+		<!-- Navigation menu -->
+		<div class="col-md-3 hidden-sm hidden-xs" id="wrapper">
+			{% include nav_v1.0.html %}
+		</div>
+		<!-- Content body -->
+		<div class="col-md-8 col-sm-11 col-xs-11 bodywrapper">
+			{% include documentation.html %}
+		</div>
+	</div>
+	<div class="gcse-wrapper">
+	    <gcse:searchresults></gcse:searchresults>
+	</div>
 </div>
 <script type="text/javascript">
 	$(function() {
@@ -69,49 +81,62 @@
 		    });
 		}
 		loadonstatechange();
-		/* Load only the doccontent div on click, push state so back/forward browser buttons work, and then animate nav menu */
+		/* Handle clicks in nav menu, content body, and header. Also track history by pushing state (so back/forward browser buttons work)*/
 	    $(document).on("click", 'a', function(e) {
 	        e.preventDefault();
 			var clickedon = $(this),
 				href = $(this).attr('href'),
 				isAnchor = false;
-			if (href.indexOf('#') == 0){//if its an anchor
+			if (href.indexOf('#') == 0){//check if its an in-page anchor
 				isAnchor = true;
-			} else if(href != "#") {//get the absolute url
+			} else if(href != "#") {//otherwise get the absolute url
 				href = this.href;
 			}
-			if(this.host != location.host && href != "javascript:;") {//open external links in new tab/window
-				window.open(href, '_blank');
-			} else if(href != "#" && !clickedon.parents('header').is('#nav') && !clickedon.parents('div').is('#mobile-nav-container')) {//skip empty nav menu containers and any clicks in the banner and banner menu
-				history.pushState(null, null, href);
-				if(isAnchor){//if an in-page anchors
-					var offset = 0;
-					if ($(href).length) {//make sure its a valid anchor, otherwise scroll no where (offset = 0)
-						offset = $(href).offset().top - 155;
+			if(href == "javascript:;") {//Handle javascript only clicks
+				if ($(this).hasClass('togglenav')) { //toggle display of the nav menu (hidden by default on small res. displays)
+					togglenavmenu();
+					if(!($('#wrapper').hasClass('hidden-sm'))) {
+						syncmenutourl();
 					}
-					$('html, body').animate({scrollTop: offset}, 0);//scroll to anchor
-					return false;
-				} else { //load only the new content into the page (do not load full page)
-					$('#doccontent').load(href + ' #doccontent > *');
-					$('html, body').animate({scrollTop: 0}, 0);
-					if (clickedon.hasClass('gentoc')) {//generate the in-page TOC (load the full page load)
-						window.location = href;
+				}
+				return false;
+			} else {
+				if($('#wrapper').hasClass('col-sm-5')) {//close nav menu
+					togglenavmenu();
+				}
+				if(this.host != location.host) {//open external links in new tab/window
+					window.open(href, '_blank');
+				} else if(href != "#" && !clickedon.parents('header').is('#nav') && !clickedon.parents('div').is('#mobile-nav-container')) {//skip empty nav menu containers and any clicks in the banner and banner menu
+					history.pushState(null, null, href);
+					if(isAnchor){//if an in-page anchors
+						var offset = 0;
+						if ($(href).length) {//make sure its a valid anchor, otherwise scroll no where (offset = 0)
+							offset = $(href).offset().top - 120;
+						}
+						$('html, body').animate({scrollTop: offset}, 0);//scroll to anchor
+						return false;
+					} else { //load only the new content into the page (do not load full page)
+						$('#doccontent').load(href + ' #doccontent > *');
+						$('html, body').animate({scrollTop: 0}, 0);
+						if (clickedon.hasClass('gentoc')) {//generate the in-page TOC (load the full page load)
+							window.location = href;
+						}
+						$.get(href, function(html){//update the page's <title> tags with title from loaded page (so browser shows current title)
+						    var matches = html.match(/<title>([^<]*)/);
+						    if (matches.length>0) {
+						        var title = matches[1];
+						        document.title = title;
+						    }
+						});
 					}
-					$.get(href, function(html){//update the page's <title> tags with title from loaded page (so browser shows current title)
-					    var matches = html.match(/<title>([^<]*)/);
-					    if (matches.length>0) {
-					        var title = matches[1];
-					        document.title = title;
-					    }
-					});
+					if(clickedon.parents().hasClass('bodywrapper')){//animate navigation menu
+						animatenav(findcurnavitem());//is an in-page link
+					} else {
+						animatenav(clickedon);//is a nav menu link
+					}
+				} else if (href != "#"){ //open links in main menu (load the full page load)
+					window.location = href;
 				}
-				if(clickedon.parents().hasClass('bodywrapper')){//animate navigation menu
-					animatenav(findcurnavitem());//is an in-page link
-				} else {
-					animatenav(clickedon);//is a nav menu link
-				}
-			} else if (href != "#"){ //open links in main menu (load the full page load)
-				window.location = href;
 			}
 		    return false; // don't actually follow the link (avoid reloading page)
 	    });
@@ -147,10 +172,15 @@
 				visible_end = visible_start + total_visible; //location at bottom of visible window
 		    if(itemposition < 0 || itemposition > total_visible){// check if its outside visible area and then move it
 				$('#wrapper').animate({
-					scrollTop: (visible_start + itemposition - 155) // move to visible area and add padding to account for banner
+					scrollTop: (visible_start + itemposition - 129) // move to visible area and add padding to account for banner
 					}, 50);
 			}
 	        return false;
+		}
+		/* Toggle the navigation menu open or closed (for small resolution screens) */
+		function togglenavmenu() {
+			$('#wrapper').toggleClass('hidden-sm hidden-xs col-sm-5 col-xs-7');
+			$(this).find('img').toggle();
 		}
 	});
 </script>

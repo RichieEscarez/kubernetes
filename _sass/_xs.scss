@@ -1,4 +1,22 @@
 @media #{$xs} {
+    #docbanner {
+        .interior{
+            h1 {
+                font-size: 30px;
+            }
+        }
+    }
+    #gcse-searchbox {
+        left: 40px;
+    }
+    #wrapper {
+        top: 111px;
+        z-index: $zNav;
+        background: white;
+    }
+    .bodywrapper{
+        top: 31px;
+    }
     body {
         padding-top: 70px;
     }
@@ -34,7 +52,7 @@
     }
 
     #nav {
-        background-color: $turquoise;
+        background-color: $blue;
         background-image: url('#{$img_dir_mobile}/nav_logo.svg');
         background-repeat: no-repeat;
         background-position: center;
@@ -50,7 +68,6 @@
             width: 28px;
             height: 18px;
             margin-top: 25px;
-            display: block;
         }
         #mobile-menu-button {
             width: 24px;

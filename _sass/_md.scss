@@ -1,4 +1,15 @@
 @media #{$md} {
+	.toggleposition {
+		left: 255px;
+	}
+	.bodywrapper{
+        top: 41px;
+		left: 255px;
+	}
+	#wrapper {
+		top: 129px;
+		max-width: 255px;
+	}
     .headline {
         margin-top: 30px;
         h3 {
