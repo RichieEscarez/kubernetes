@@ -118,7 +118,7 @@
 					if(isAnchor){//if an in-page anchors, scroll to it
 						var offset = 0;
 						if ($(href).length) {//make sure its a valid anchor, otherwise scroll no where (offset = 0)
-							offset = $(href).offset().top - 120;
+							offset = $(href).offset().top - 155;
 						}
 						$('html, body').animate({scrollTop: offset}, 0);//scroll to anchor
 						return false;
