@@ -83,6 +83,12 @@
 		    });
 		}
 		loadonstatechange();
+		/* Watch for any click in the content area and then close the nav menu (for small res. desiplays) */
+		$('.bodywrapper').on("click", function(e) {
+			if($('#wrapper').hasClass('col-sm-5')) {
+				togglenavmenu();
+			}
+		});
 		/* Handle clicks in nav menu, content body, and header. Also track history by pushing state (so back/forward browser buttons work)*/
 	    $(document).on("click", 'a', function(e) {
 	        e.preventDefault();
