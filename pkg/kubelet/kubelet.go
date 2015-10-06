@@ -118,7 +118,7 @@ type SyncHandler interface {
 	HandlePodCleanups() error
 }
 
-type SourcesReadyFn func() bool
+type SourcesReadyFn func(sourcesSeen sets.String) bool
 
 // Wait for the container runtime to be up with a timeout.
 func waitUntilRuntimeIsUp(cr kubecontainer.Runtime, timeout time.Duration) error {
@@ -420,6 +420,7 @@ func NewMainKubelet(
 	klet.backOff = util.NewBackOff(resyncInterval, maxContainerBackOff)
 	klet.podKillingCh = make(chan *kubecontainer.Pod, podKillingChannelCapacity)
 
+	klet.sourcesSeen = sets.NewString()
 	return klet, nil
 }
 
@@ -443,6 +444,9 @@ type Kubelet struct {
 	podWorkers     PodWorkers
 	resyncInterval time.Duration
 	sourcesReady   SourcesReadyFn
+	// sourcesSeen records the sources seen by kubelet. This set is not thread
+	// safe and should only be access by the main kubelet syncloop goroutine.
+	sourcesSeen sets.String
 
 	podManager podManager
 
@@ -597,6 +601,15 @@ type Kubelet struct {
 
 	// Information about the ports which are opened by daemons on Node running this Kubelet server.
 	daemonEndpoints *api.NodeDaemonEndpoints
+}
+
+func (kl *Kubelet) allSourcesReady() bool {
+	// Make a copy of the sourcesSeen list because it's not thread-safe.
+	return kl.sourcesReady(sets.NewString(kl.sourcesSeen.List()...))
+}
+
+func (kl *Kubelet) addSource(source string) {
+	kl.sourcesSeen.Insert(source)
 }
 
 // getRootDir returns the full path to the directory under which kubelet can
@@ -1624,7 +1637,7 @@ func (kl *Kubelet) removeOrphanedPodStatuses(pods []*api.Pod, mirrorPods []*api.
 }
 
 func (kl *Kubelet) deletePod(uid types.UID) error {
-	if !kl.sourcesReady() {
+	if !kl.allSourcesReady() {
 		// If the sources aren't ready, skip deletion, as we may accidentally delete pods
 		// for sources that haven't reported yet.
 		return fmt.Errorf("skipping delete because sources aren't ready yet")
@@ -1912,7 +1925,7 @@ func (kl *Kubelet) syncLoop(updates <-chan PodUpdate, handler SyncHandler) {
 		// housekeepingMinimumPeriod.
 		// TODO (#13418): Investigate whether we can/should spawn a dedicated
 		// goroutine for housekeeping
-		if !kl.sourcesReady() {
+		if !kl.allSourcesReady() {
 			// If the sources aren't ready, skip housekeeping, as we may
 			// accidentally delete pods from unready sources.
 			glog.V(4).Infof("Skipping cleanup, sources aren't ready yet.")
@@ -1936,6 +1949,7 @@ func (kl *Kubelet) syncLoopIteration(updates <-chan PodUpdate, handler SyncHandl
 			glog.Errorf("Update channel is closed. Exiting the sync loop.")
 			return false
 		}
+		kl.addSource(u.Source)
 		switch u.Op {
 		case ADD:
 			glog.V(2).Infof("SyncLoop (ADD): %q", kubeletUtil.FormatPodNames(u.Pods))
