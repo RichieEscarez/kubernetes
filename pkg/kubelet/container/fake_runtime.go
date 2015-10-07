@@ -219,7 +219,7 @@ func (f *FakeRuntime) GetPodStatus(*api.Pod) (*api.PodStatus, error) {
 	return &status, f.Err
 }
 
-func (f *FakeRuntime) ExecInContainer(containerID string, cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser, tty bool) error {
+func (f *FakeRuntime) ExecInContainer(containerID ContainerID, cmd []string, stdin io.Reader, stdout, stderr io.WriteCloser, tty bool) error {
 	f.Lock()
 	defer f.Unlock()
 
@@ -227,7 +227,7 @@ func (f *FakeRuntime) ExecInContainer(containerID string, cmd []string, stdin io
 	return f.Err
 }
 
-func (f *FakeRuntime) AttachContainer(containerID string, stdin io.Reader, stdout, stderr io.WriteCloser, tty bool) error {
+func (f *FakeRuntime) AttachContainer(containerID ContainerID, stdin io.Reader, stdout, stderr io.WriteCloser, tty bool) error {
 	f.Lock()
 	defer f.Unlock()
 
@@ -235,7 +235,7 @@ func (f *FakeRuntime) AttachContainer(containerID string, stdin io.Reader, stdou
 	return f.Err
 }
 
-func (f *FakeRuntime) RunInContainer(containerID string, cmd []string) ([]byte, error) {
+func (f *FakeRuntime) RunInContainer(containerID ContainerID, cmd []string) ([]byte, error) {
 	f.Lock()
 	defer f.Unlock()
 
@@ -243,7 +243,7 @@ func (f *FakeRuntime) RunInContainer(containerID string, cmd []string) ([]byte, 
 	return []byte{}, f.Err
 }
 
-func (f *FakeRuntime) GetContainerLogs(pod *api.Pod, containerID string, logOptions *api.PodLogOptions, stdout, stderr io.Writer) (err error) {
+func (f *FakeRuntime) GetContainerLogs(pod *api.Pod, containerID ContainerID, logOptions *api.PodLogOptions, stdout, stderr io.Writer) (err error) {
 	f.Lock()
 	defer f.Unlock()
 
