@@ -137,7 +137,7 @@ func testHostIP(c *client.Client, ns string, pod *api.Pod) {
 var _ = Describe("Pods", func() {
 	framework := NewFramework("pods")
 
-	PIt("should get a host IP", func() {
+	PIt("should get a host IP [Conformance]", func() {
 		name := "pod-hostip-" + string(util.NewUUID())
 		testHostIP(framework.Client, framework.Namespace.Name, &api.Pod{
 			ObjectMeta: api.ObjectMeta{
@@ -154,7 +154,7 @@ var _ = Describe("Pods", func() {
 		})
 	})
 
-	It("should be schedule with cpu and memory limits", func() {
+	It("should be schedule with cpu and memory limits [Conformance]", func() {
 		podClient := framework.Client.Pods(framework.Namespace.Name)
 
 		By("creating the pod")
@@ -191,7 +191,7 @@ var _ = Describe("Pods", func() {
 		expectNoError(framework.WaitForPodRunning(pod.Name))
 	})
 
-	It("should be submitted and removed", func() {
+	It("should be submitted and removed [Conformance]", func() {
 		podClient := framework.Client.Pods(framework.Namespace.Name)
 
 		By("creating the pod")
@@ -299,7 +299,7 @@ var _ = Describe("Pods", func() {
 		Expect(len(pods.Items)).To(Equal(0))
 	})
 
-	It("should be updated", func() {
+	It("should be updated [Conformance]", func() {
 		podClient := framework.Client.Pods(framework.Namespace.Name)
 
 		By("creating the pod")
@@ -381,7 +381,7 @@ var _ = Describe("Pods", func() {
 		Logf("Pod update OK")
 	})
 
-	It("should contain environment variables for services", func() {
+	It("should contain environment variables for services [Conformance]", func() {
 		// Make a pod that will be a service.
 		// This pod serves its hostname via HTTP.
 		serverName := "server-envvars-" + string(util.NewUUID())
@@ -468,7 +468,7 @@ var _ = Describe("Pods", func() {
 		})
 	})
 
-	It("should be restarted with a docker exec \"cat /tmp/health\" liveness probe", func() {
+	It("should be restarted with a docker exec \"cat /tmp/health\" liveness probe [Conformance]", func() {
 		runLivenessTest(framework.Client, framework.Namespace.Name, &api.Pod{
 			ObjectMeta: api.ObjectMeta{
 				Name:   "liveness-exec",
@@ -494,7 +494,7 @@ var _ = Describe("Pods", func() {
 		}, 1, defaultObservationTimeout)
 	})
 
-	It("should *not* be restarted with a docker exec \"cat /tmp/health\" liveness probe", func() {
+	It("should *not* be restarted with a docker exec \"cat /tmp/health\" liveness probe [Conformance]", func() {
 		runLivenessTest(framework.Client, framework.Namespace.Name, &api.Pod{
 			ObjectMeta: api.ObjectMeta{
 				Name:   "liveness-exec",
@@ -520,7 +520,7 @@ var _ = Describe("Pods", func() {
 		}, 0, defaultObservationTimeout)
 	})
 
-	It("should be restarted with a /healthz http liveness probe", func() {
+	It("should be restarted with a /healthz http liveness probe [Conformance]", func() {
 		runLivenessTest(framework.Client, framework.Namespace.Name, &api.Pod{
 			ObjectMeta: api.ObjectMeta{
 				Name:   "liveness-http",
@@ -547,7 +547,7 @@ var _ = Describe("Pods", func() {
 		}, 1, defaultObservationTimeout)
 	})
 
-	It("should have monotonically increasing restart count", func() {
+	It("should have monotonically increasing restart count [Conformance]", func() {
 		runLivenessTest(framework.Client, framework.Namespace.Name, &api.Pod{
 			ObjectMeta: api.ObjectMeta{
 				Name:   "liveness-http",
@@ -574,7 +574,7 @@ var _ = Describe("Pods", func() {
 		}, 5, time.Minute*5)
 	})
 
-	It("should *not* be restarted with a /healthz http liveness probe", func() {
+	It("should *not* be restarted with a /healthz http liveness probe [Conformance]", func() {
 		runLivenessTest(framework.Client, framework.Namespace.Name, &api.Pod{
 			ObjectMeta: api.ObjectMeta{
 				Name:   "liveness-http",
