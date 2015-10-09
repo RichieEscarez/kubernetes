@@ -60,7 +60,7 @@ type documentable interface {
 var errEmptyName = errors.NewBadRequest("name must be provided")
 
 // Installs handlers for API resources.
-func (a *APIInstaller) Install(ws *restful.WebService) (apiResources []api.APIResource, errors []error) {
+func (a *APIInstaller) Install(ws *restful.WebService) (apiResources []unversioned.APIResource, errors []error) {
 	errors = make([]error, 0)
 
 	proxyHandler := (&ProxyHandler{a.prefix + "/proxy/", a.group.Storage, a.group.Codec, a.group.Context, a.info})
@@ -99,7 +99,7 @@ func (a *APIInstaller) NewWebService() *restful.WebService {
 	return ws
 }
 
-func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storage, ws *restful.WebService, proxyHandler http.Handler) (*api.APIResource, error) {
+func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storage, ws *restful.WebService, proxyHandler http.Handler) (*unversioned.APIResource, error) {
 	admit := a.group.Admit
 	context := a.group.Context
 
@@ -266,7 +266,7 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 	params := []*restful.Parameter{}
 	actions := []action{}
 
-	var apiResource api.APIResource
+	var apiResource unversioned.APIResource
 	// Get the list of actions for the given scope.
 	switch scope.Name() {
 	case meta.RESTScopeNameRoot:
