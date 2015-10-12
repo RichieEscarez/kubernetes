@@ -883,7 +883,7 @@ type JobDescriber struct {
 }
 
 func (d *JobDescriber) Describe(namespace, name string) (string, error) {
-	job, err := d.client.Experimental().Jobs(namespace).Get(name)
+	job, err := d.client.Extensions().Jobs(namespace).Get(name)
 	if err != nil {
 		return "", err
 	}
@@ -923,7 +923,7 @@ type DaemonSetDescriber struct {
 }
 
 func (d *DaemonSetDescriber) Describe(namespace, name string) (string, error) {
-	dc := d.Experimental().DaemonSets(namespace)
+	dc := d.Extensions().DaemonSets(namespace)
 	pc := d.Pods(namespace)
 
 	daemon, err := dc.Get(name)
@@ -1254,7 +1254,7 @@ type HorizontalPodAutoscalerDescriber struct {
 }
 
 func (d *HorizontalPodAutoscalerDescriber) Describe(namespace, name string) (string, error) {
-	hpa, err := d.client.Experimental().HorizontalPodAutoscalers(namespace).Get(name)
+	hpa, err := d.client.Extensions().HorizontalPodAutoscalers(namespace).Get(name)
 	if err != nil {
 		return "", err
 	}
@@ -1420,7 +1420,7 @@ type DeploymentDescriber struct {
 }
 
 func (dd *DeploymentDescriber) Describe(namespace, name string) (string, error) {
-	d, err := dd.Experimental().Deployments(namespace).Get(name)
+	d, err := dd.Extensions().Deployments(namespace).Get(name)
 	if err != nil {
 		return "", err
 	}
