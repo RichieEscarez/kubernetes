@@ -31,263 +31,110 @@ Documentation for other releases can be found at
 
 <!-- END MUNGE: UNVERSIONED_WARNING -->
 
-App Porting Example
-========
-This example shows porting a very simple two-tier app from running
-locally, to in containers, and finally on Kubernetes. Each
-subdirectory contains a copy of the same app, and a simple README for
-running in that environment. Feel free to run each version, or just
-read on and examine the changes necessary.
+# Tutorial: Porting apps into containers and running them in Kubernetes clusters
 
-Local
------
-The app is a simple guestbook, written in go. It uses mysql for a
-database. It could just as easily be written in any language. The
-version in the [`local/`](local/) directory is what you might write
-when starting development, and running in a single IaaS instance. You
-run mysql on your local machine, and build the app using development
-tools installed on your machine. The app expects mysql to be running
-on the same machine, as it connects to `localhost` to connect with the
-database.
+Use this tutorial to help you understand the task of porting a simple two-tier application into a [Kubernetes cluster](../../docs/user-guide/overview.md).
 
-Containers
+  - [Overview](#overview)
+  - [Before you begin](#before-you-begin)
+  - [Prerequisites](#prerequisites)
+  - [1. Installing and running the app locally](#1-installing-and-running-the-app-locally)
+  - [2. Running the app in containers](#2-running-the-app-in-containers)
+  - [3. Running the containerized app in a Kubernetes cluster](#3-running-the-containerized-app-in-a-kubernetes-cluster)
+  - [4. Extended learning: Using secrets for your passwords](#4-extended-learning-using-secrets-for-your-passwords)
+
 ----------
-This copy, in [`containers/`](containers/), gets most of the benefits
-of containerization. The build of the code is happening inside a
-Docker container, using the official golang image. This makes building
-anywhere the same, and not dependant on the version of the dev tools
-installed on your system. It always downloads the latest library
-dependencies on build as well. The mysql container, again, is the same
-everywhere it is run. You don't have to install and maintain mysql on
-your machine.
 
-The main change here is the addition of a [`Dockerfile`](containers/Dockerfile):
+## Overview
 
-```
-FROM golang:1.4-onbuild
-EXPOSE 8080
-```
+This tutorial covers the common steps for porting a locally running two-tier app into containers and then running those containers in an existing Kubernetes cluster.
 
-The next major change, is how the app connects to the database:
+The two-tier app that is used to demonstrate the process is a simple guestbook (front-end) that connects to a MySQL database (back-end). The guestbook (app.go) is written in the Go language to connect to a MySQL server, create a database if one does not exist, and then store user input from a web interface into that database.
 
-```go
---- local/app.go	2015-05-14 10:28:44.938793915 -0700
-+++ containers/app.go	2015-05-14 10:28:44.938793915 -0700
-@@ -6,13 +6,16 @@
- 	"html/template"
- 	"log"
- 	"net/http"
-+	"os"
- 	"time"
- 
- 	_ "github.com/go-sql-driver/mysql"
- )
- 
- func connect() (*sql.DB, error) {
--	db, err := sql.Open("mysql", "root:secret@tcp(localhost:3306)/?parseTime=true")
-+	dbpw := os.Getenv("DB_PW")
-+	connect := fmt.Sprintf("root:%v@tcp(mysql-hostname:3306)/?parseTime=true", dbpw)
-+	db, err := sql.Open("mysql", connect)
- 	if err != nil {
- 		return db, fmt.Errorf("Error opening db: %v", err)
- 	}
-```
+In general, when you port your two-tier app into containers and then into Kubernetes, you must modify your app to ensure that it runs in each environment. For example, at each step in this tutorial the example guestbook app is modified to ensure that the front-end and back-end continue to connect to each other.
 
-Instead of using 'localhost', it uses 'mysql-hostname'. We use
-Docker's [container
-linking](https://docs.docker.com/userguide/dockerlinks/) to make the
-database available as 'mysql-hostname' in the app container.
+The steps used to demonstrate the process of porting over a simple two-tier app include:
 
-We also changed the app to allow the database password to be passed as
-an environment variable. This made sense, as the database password is
-set when running a new mysql container, and we wanted to send the
-password to the app in the same way. We no longer have to manage the
-password configuration of a mysql database installed on a system.
+ 1. **Run the app locally** *(optional)*: Install and run the app on your local computer.
+ 1. **Containerize the app**: Port the app into containers and then run them with the Docker Engine.
+ 1. **Run the containers in a cluster**: Port the containerized version of the app into Kubernetes and then run it in your cluster.
 
-Here you are still running the two pieces on the same system, though
-in their separate containers. You could easily run multiple app
-containers on the same system, but would have to broker ports, and
-figure out load balancing. If you wanted to run the app and database
-on separate systems, you would have to figure out networking and
-discovery, as the Docker linking feature does not work across
-hosts. Enter Kubernetes:
+Each step is explained below in detail.
 
-Kubernetes
 ----------
-Porting the app to run on Kubernetes will take care of the above
-shortcomings. Given a cluster, Kubernetes will run the database and
-front ends on any system, manage networking, and provide
-discovery. The version of the app in [`k8s/`](k8s/) will run mysql and
-two replicas of the front end on a Kubernetes cluster.
 
-Since Kuberenetes is declarative. We need to add a few definition
-files to our project, instead of keeping a playbook of docker
-commands. We add:
+## Before you begin
 
-```
-mysql.yaml
-twotier.yaml
-```
+It's your choice. You can follow along step-by-step by using the provided example guestbook app or instead review the process to learn how to port over your own app.
 
-These define the pods to run, and the services to make them
-discoverable.  We keep the Dockerfile the same, but change the app
-slightly to discover mysql in the Kubernetes environment:
+Instructions and a version of the example guestbook app are provided for each environment so that you can experience the entire process. Optionally, since each version of the example guestbook app is pre-configured to stand alone, you can join in and follow along at any point.
 
-```go
---- containers/app.go	2015-05-14 10:28:44.938793915 -0700
-+++ k8s/app.go	2015-05-14 10:28:44.938793915 -0700
-@@ -14,7 +14,9 @@
- 
- func connect() (*sql.DB, error) {
- 	dbpw := os.Getenv("DB_PW")
--	connect := fmt.Sprintf("root:%v@tcp(mysql-hostname:3306)/?parseTime=true", dbpw)
-+	mysqlHost := os.Getenv("MYSQL_SERVICE_HOST")
-+	mysqlPort := os.Getenv("MYSQL_SERVICE_PORT")
-+	connect := fmt.Sprintf("root:%v@tcp(%v:%v)/?parseTime=true", dbpw, mysqlHost, mysqlPort)
- 	db, err := sql.Open("mysql", connect)
- 	if err != nil {
- 		return db, fmt.Errorf("Error opening db: %v", err)
-```
+> **Extended learning:** This tutorial also covers some optional advanced steps about how to create and use secrets for your passwords in Kubernetes. Details are provided in [Step #4](#4-extended-learning-using-secrets-to-store-your-passwords).
 
-The app is coded to expect a service named 'mysql' to exist. In the
-[`mysql.yaml`](k8s/mysql.yaml), under `kind: "Service"` we have `name:
-"mysql"`. The app uses the Kubernetes provided environment variables
-to locate the mysql service.
+----------
 
-It is still expecting the password to be provided as an environment
-variable. You can see this in [`mysql.yaml`](k8s/mysql.yaml) and
-[`twotier.yaml`](k8s/twotier.yaml).
+## Prerequisites
 
-Bonus: Secret Store
--------------------
-The app is already minimally ported to run in Kubernetes, but we can
-take advantage of some more features. The version of this example in
-the [`secret/`](secret/) directory makes use of Kubernetes
-[secrets](https://github.com/docs/secrets.md). We are going to use the secrets feature
-to store the password centrally of our mysql database. First we add a
-file [`password.yaml`](secret/password.yaml) that defines the secret:
+To follow along with the steps in this tutorial, you must meet the prerequisites listed below.
 
-```yaml
-apiVersion: "v1"
-kind: "Secret"
-metadata:
-  name: "mysql-pw"
-data:
-  password: "bXlzZWNyZXRwYXNzd29yZA=="
-```
+This tutorial assumes that you are familiar with the following objects and their architecture:
 
-Then we modify the pod definition of both the mysql and front end pods
-to remove the password environment variables, and add the volume mount
-definitions for the secret:
+ * Docker containers. To learn more about containers, see the [Quickstart containers](http://docs.docker.com/engine/userguide/basics/) topic.
+ * Kubernetes clusters and their replication controllers, pods, and services. To learn more about clusters, see the [Managing Applications](../../docs/user-guide/README.md) guide. <br/>*Tip*: If you used one of the Kubernetes getting started guides to create your cluster, you should be prepared enough to complete this tutorial.
 
-```yaml
---- k8s/mysql.yaml	2015-07-13 14:40:54.509756256 -0700
-+++ secret/mysql.yaml	2015-07-13 14:32:16.259056145 -0700
-@@ -15,12 +15,12 @@
-           gcePersistentDisk:
-             pdName: "mysql-disk"
-             fsType: "ext4"
-+        - name: "password"
-+          secret:
-+            secretName: "mysql-pw"
-         containers:
-         - name: "mysql"
--          image: "mysql:latest"
--          env:
--          - name: MYSQL_ROOT_PASSWORD
--            value: mysecretpassword
-+          image: "gcr.io/google-samples/mysql:secret"
-           ports:
-           - name: "mysql"
-             containerPort: 3306
-@@ -28,6 +28,9 @@
-           volumeMounts:
-           - name: "mysql-vol"
-             mountPath: "/var/lib/mysql"
-+          - name: "password"
-+            mountPath: "/etc/mysql-password"
-+            readOnly: true
-```
+The following prerequisites differ by environment and depend on when you decide to follow along. For specific details, see the individual tutorial steps.
 
-```yaml
---- k8s/twotier.yaml	2015-07-13 14:42:19.875519381 -0700
-+++ secret/twotier.yaml	2015-07-13 14:32:17.711086045 -0700
-@@ -10,17 +10,22 @@
-         labels:
-           role: "front"
-       spec:
-+        volumes:
-+        - name: "password"
-+          secret:
-+            secretName: "mysql-pw"
-         containers:
-         - name: "twotier"
--          env:
--          - name: DB_PW
--            value: mysecretpassword
--          image: "gcr.io/google-samples/steps-twotier:k8s"
-+          image: "gcr.io/google-samples/steps-twotier:secret"
-           ports:
-           - name: "http-server"
-             hostPort: 80
-             containerPort: 8080
-             protocol: "TCP"
-+          volumeMounts:
-+          - name: "password"
-+            mountPath: "/etc/mysql-password"
-+            readOnly: true
-```
+ * Software prerequisites for porting your apps:
+    * Download and install the Docker Engine. For details, see [Install Docker Engine](https://docs.docker.com/installation/).
+    * Install Kubernetes and then create and run a cluster. For details, see [Creating a Kubernetes Cluster](../../docs/getting-started-guides/README.md).
+    * Create an account in a registry where you can push your container images. For example, an account in either [Docker Hub](https://hub.docker.com/), [Google Container Registry](https://cloud.google.com/tools/container-registry/), or another private container registry. For details, see the Kubernetes [Images](../../docs/user-guide/images.md) topic.
 
-We then modify our app to read the password from the mounted file, instead of the environment variable:
+ * Other prerequisites for following along step-by-step:
+    * Install and configure the Go build environment. For details, see the [Getting Started](http://golang.org/doc/install) topic.
+    * Download and install the MySQL server. For details, see the [MySQL downloads](http://dev.mysql.com/downloads/) page.
+    * Create a Google Compute Engine project on Google Cloud Platform. For a trial, see [Google Cloud Platform Pricing](https://cloud.google.com/pricing/).
+    * Install and configure the Google Cloud SDK. For details, see [Installation and Quick Start](https://cloud.google.com/sdk/#Quick_Start).
 
-```go
---- k8s/app.go	2015-05-14 15:22:51.851319468 -0700
-+++ secret/app.go	2015-05-15 14:32:31.111850594 -0700
-@@ -4,6 +4,7 @@
- 	"database/sql"
- 	"fmt"
- 	"html/template"
-+	"io/ioutil"
- 	"log"
- 	"net/http"
- 	"os"
-@@ -13,10 +14,13 @@
- )
- 
- func connect() (*sql.DB, error) {
--	dbpw := os.Getenv("DB_PW")
-+	dbpw, err := ioutil.ReadFile("/etc/mysql-password/password")
-+	if err != nil {
-+		return nil, fmt.Errorf("Error reading db password: %v", err)
-+	}
- 	mysqlHost := os.Getenv("MYSQL_SERVICE_HOST")
- 	mysqlPort := os.Getenv("MYSQL_SERVICE_PORT")
--	connect := fmt.Sprintf("root:%v@tcp(%v:%v)/?parseTime=true", dbpw, mysqlHost, mysqlPort)
-+	connect := fmt.Sprintf("root:%v@tcp(%v:%v)/?parseTime=true", string(dbpw), mysqlHost, mysqlPort)
- 	db, err := sql.Open("mysql", connect)
- 	if err != nil {
- 		return db, fmt.Errorf("Error opening db: %v", err)
-```
+----------
 
-For the mysql container, it is a bit trickier. We were originally
-using the public mysql image, but we will need to tweak it to read the
-password from a file. For this we add a new
-[`mysql/Dockerfile`](secret/mysql/Dockerfile) that contains:
+## 1. Installing and running the app locally
 
-```
-FROM mysql:latest
-CMD export MYSQL_ROOT_PASSWORD=$(cat /etc/mysql-password/password); /entrypoint.sh mysqld
-```
+This is an optional first step in the tutorial that is provided to help you walk through and understand the process of porting an app into Kubernetes in it's entirety. In this step you install and configure the example guestbook app on your local computer. The example guestbook app is then used through the remainder of the tutorial to demonstrate each step in the process.
 
-We are setting the password variable on the `CMD` line of the
-Dockerfile, which gets evaluated at runtime. We then run the command
-from the [original
-Dockerfile](https://github.com/docker-library/mysql/blob/master/5.6/Dockerfile). Now
-we use our customized mysql image, instead of the public image.
+> **Tip**: If you already have an app that you want to run in a Kubernetes cluster, you can skip to the next step to learn about porting that app into a container.
 
+#### - [Install and run the app locally](local/README.md)
 
+----------
 
+## 2. Running the app in containers
 
+In this step, the app that you have running on your local computer is modified to run in containers. This step includes creating a `Dockerfile` for each container and then building and running those containers with a local installation of the Docker Engine.
+
+#### - [Run the app in containers](containers/README.md)
+
+----------
+
+## 3. Running the containerized app in a Kubernetes cluster
+
+In this step, the containerized version of your app is modified and configured to run in Kubernetes. This step includes building and pushing your containers to a registry, creating configuration files to define each container to the cluster, and then deploying your containers to run the app in your cluster.
+
+#### - [Run the containerized app in a Kubernetes cluster](k8s/README.md)
+
+----------
+
+## 4. Extended learning: Using secrets for your passwords
+
+In this optional step, the version of your app that you have running in Kubernetes is modified to use Kubernetes secrets for storing your sensitive data such as passwords. This step includes creating the Kubernetes secret object and then updating the pods in your cluster for which you want using that secret.
+
+#### - [Use secrets to store your passwords](secret/README.md)
+
+----------
+
+***Next steps***: Learn how to administer your applications and clusters in Kubernetes:
+
+ * [Kubernetes User Guide: Managing Applications](../../docs/user-guide/README.md)
+ * [Kubernetes Cluster Admin Guide](../../docs/admin/introduction.md)
 
 <!-- BEGIN MUNGE: GENERATED_ANALYTICS -->
 [![Analytics](https://kubernetes-site.appspot.com/UA-36037335-10/GitHub/examples/porting-steps/README.md?pixel)]()
