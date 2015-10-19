@@ -738,7 +738,7 @@ case ${JOB_NAME} in
     : ${E2E_TEST:="false"}
     : ${E2E_DOWN:="false"}
     : ${ENABLE_EXPERIMENTAL_API:=true}
-    : ${NUM_MINIONS:=3}
+    : ${NUM_MINIONS:=5}
     ;;
 
   kubernetes-upgrade-gce-step2-upgrade-master)
@@ -752,7 +752,7 @@ case ${JOB_NAME} in
     : ${E2E_DOWN:="false"}
     : ${GINKGO_TEST_ARGS:="--ginkgo.focus=Skipped.*Cluster\supgrade.*upgrade-master"}
     : ${ENABLE_EXPERIMENTAL_API:=true}
-    : ${NUM_MINIONS:=3}
+    : ${NUM_MINIONS:=5}
     ;;
 
   kubernetes-upgrade-gce-step3-e2e-old)
@@ -773,7 +773,7 @@ case ${JOB_NAME} in
           ${GCE_FLAKY_TESTS[@]:+${GCE_FLAKY_TESTS[@]}} \
           )"}
     : ${ENABLE_EXPERIMENTAL_API:=true}
-    : ${NUM_MINIONS:=3}
+    : ${NUM_MINIONS:=5}
     ;;
 
   kubernetes-upgrade-gce-step4-upgrade-cluster)
@@ -787,7 +787,7 @@ case ${JOB_NAME} in
     : ${E2E_DOWN:="false"}
     : ${GINKGO_TEST_ARGS:="--ginkgo.focus=Skipped.*Cluster\supgrade.*upgrade-cluster"}
     : ${ENABLE_EXPERIMENTAL_API:=true}
-    : ${NUM_MINIONS:=3}
+    : ${NUM_MINIONS:=5}
     ;;
 
   kubernetes-upgrade-gce-step5-e2e-old)
@@ -806,7 +806,7 @@ case ${JOB_NAME} in
           ${GCE_FLAKY_TESTS[@]:+${GCE_FLAKY_TESTS[@]}} \
           )"}
     : ${ENABLE_EXPERIMENTAL_API:=true}
-    : ${NUM_MINIONS:=3}
+    : ${NUM_MINIONS:=5}
     ;;
 
   kubernetes-upgrade-gce-step6-e2e-new)
@@ -826,7 +826,7 @@ case ${JOB_NAME} in
           ${GCE_SLOW_TESTS[@]:+${GCE_SLOW_TESTS[@]}} \
           )"}
     : ${ENABLE_EXPERIMENTAL_API:=true}
-    : ${NUM_MINIONS:=3}
+    : ${NUM_MINIONS:=5}
     ;;
 
   # Run Kubemark test on a fake 100 node cluster to have a comparison
