@@ -1109,7 +1109,6 @@ if [[ "${E2E_UP,,}" == "true" || "${JENKINS_FORCE_GET_TARS:-}" =~ ^[yY]$ ]]; the
         (
           flock -x -n 9
           sudo gcloud components update -q || true
-          sudo gcloud components update preview -q || true
           sudo gcloud components update alpha -q || true
           sudo gcloud components update beta -q || true
         ) 9>/var/run/lock/gcloud-components.lock
