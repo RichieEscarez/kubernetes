@@ -151,6 +151,11 @@ func newTestPods(count int) []*api.Pod {
 	pods := make([]*api.Pod, count)
 	for i := 0; i < count; i++ {
 		pods[i] = &api.Pod{
+			Spec: api.PodSpec{
+				SecurityContext: &api.PodSecurityContext{
+					HostNetwork: true,
+				},
+			},
 			ObjectMeta: api.ObjectMeta{
 				Name: fmt.Sprintf("pod%d", i),
 			},
@@ -505,7 +510,7 @@ func TestMakeVolumeMounts(t *testing.T) {
 	container := api.Container{
 		VolumeMounts: []api.VolumeMount{
 			{
-				MountPath: "/mnt/path",
+				MountPath: "/etc/hosts",
 				Name:      "disk",
 				ReadOnly:  false,
 			},
@@ -533,12 +538,20 @@ func TestMakeVolumeMounts(t *testing.T) {
 		"disk5": &stubVolume{"/var/lib/kubelet/podID/volumes/empty/disk5"},
 	}
 
-	mounts := makeMounts(&container, podVolumes)
+	pod := api.Pod{
+		Spec: api.PodSpec{
+			SecurityContext: &api.PodSecurityContext{
+				HostNetwork: true,
+			},
+		},
+	}
+
+	mounts, _ := makeMounts(&pod, "/pod", &container, podVolumes)
 
 	expectedMounts := []kubecontainer.Mount{
 		{
 			"disk",
-			"/mnt/path",
+			"/etc/hosts",
 			"/mnt/disk",
 			false,
 		},
