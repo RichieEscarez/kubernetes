@@ -69,6 +69,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/record"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
 	clientauth "k8s.io/kubernetes/pkg/client/unversioned/auth"
+	cloud "k8s.io/kubernetes/pkg/cloudprovider/providers/mesos"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/healthz"
 	"k8s.io/kubernetes/pkg/master/ports"
@@ -428,7 +429,7 @@ func (s *SchedulerServer) prepareExecutorInfo(hks hyperkube.Interface) (*mesos.E
 	// Create mesos scheduler driver.
 	execInfo := &mesos.ExecutorInfo{
 		Command: ci,
-		Name:    proto.String(execcfg.DefaultInfoName),
+		Name:    proto.String(cloud.KubernetesExecutorName),
 		Source:  proto.String(execcfg.DefaultInfoSource),
 	}
 
