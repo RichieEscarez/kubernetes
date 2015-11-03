@@ -45,6 +45,8 @@ func validNewHorizontalPodAutoscaler(name string) *extensions.HorizontalPodAutos
 		},
 		Spec: extensions.HorizontalPodAutoscalerSpec{
 			ScaleRef: extensions.SubresourceReference{
+				Kind:        "ReplicationController",
+				Name:        "myrc",
 				Subresource: "scale",
 			},
 			MaxReplicas:    5,
