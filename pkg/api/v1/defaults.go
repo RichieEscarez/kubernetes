@@ -49,7 +49,7 @@ func addDefaultingFuncs() {
 				}
 			}
 			if obj.Spec.Replicas == nil {
-				obj.Spec.Replicas = new(int)
+				obj.Spec.Replicas = new(int32)
 				*obj.Spec.Replicas = 1
 			}
 		},
@@ -93,7 +93,7 @@ func addDefaultingFuncs() {
 					sp.Protocol = ProtocolTCP
 				}
 				if sp.TargetPort == intstr.FromInt(0) || sp.TargetPort == intstr.FromString("") {
-					sp.TargetPort = intstr.FromInt(sp.Port)
+					sp.TargetPort = intstr.FromInt(int(sp.Port))
 				}
 			}
 		},
