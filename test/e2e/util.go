@@ -917,6 +917,9 @@ func randomSuffix() string {
 }
 
 func expectNoError(err error, explain ...interface{}) {
+	if err != nil {
+		Logf("Unexpected error occurred: %v", err)
+	}
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), explain...)
 }
 
