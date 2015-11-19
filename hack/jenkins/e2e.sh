@@ -203,7 +203,6 @@ GCE_PARALLEL_SKIP_TESTS=(
     "Resource\susage\sof\ssystem\scontainers"
     "SchedulerPredicates"
     "resource\susage\stracking"
-    "NodeOutOfDisk"
     "${DISRUPTIVE_TESTS[@]}"
     )
 
