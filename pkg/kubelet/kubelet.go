@@ -260,6 +260,7 @@ func NewMainKubelet(
 		cache.NewReflector(listWatch, &api.Node{}, nodeStore, 0).Run()
 	}
 	nodeLister := &cache.StoreToNodeLister{Store: nodeStore}
+	nodeInfo := &predicates.CachedNodeInfo{nodeLister}
 
 	// TODO: get the real node object of ourself,
 	// and use the real node name and UID.
@@ -298,6 +299,7 @@ func NewMainKubelet(
 		clusterDNS:                     clusterDNS,
 		serviceLister:                  serviceLister,
 		nodeLister:                     nodeLister,
+		nodeInfo:                       nodeInfo,
 		masterServiceNamespace:         masterServiceNamespace,
 		streamingConnectionIdleTimeout: streamingConnectionIdleTimeout,
 		recorder:                       recorder,
@@ -470,7 +472,6 @@ type serviceLister interface {
 
 type nodeLister interface {
 	List() (machines api.NodeList, err error)
-	GetNodeInfo(id string) (*api.Node, error)
 }
 
 // Kubelet is the main kubelet implementation.
@@ -524,6 +525,7 @@ type Kubelet struct {
 	masterServiceNamespace string
 	serviceLister          serviceLister
 	nodeLister             nodeLister
+	nodeInfo               predicates.NodeInfo
 
 	// a list of node labels to register
 	nodeLabels []string
@@ -819,7 +821,7 @@ func (kl *Kubelet) GetNode() (*api.Node, error) {
 	if kl.standaloneMode {
 		return nil, errors.New("no node entry for kubelet in standalone mode")
 	}
-	return kl.nodeLister.GetNodeInfo(kl.nodeName)
+	return kl.nodeInfo.GetNodeInfo(kl.nodeName)
 }
 
 // Starts garbage collection threads.
