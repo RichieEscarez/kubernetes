@@ -234,7 +234,7 @@ func NewMainKubelet(
 		// than an interface. There is no way to construct a list+watcher using resource name.
 		listWatch := &cache.ListWatch{
 			ListFunc: func() (runtime.Object, error) {
-				return kubeClient.Services(api.NamespaceAll).List(labels.Everything(), fields.Everything())
+				return kubeClient.Services(api.NamespaceAll).List(labels.Everything(), fields.Everything(), unversioned.ListOptions{})
 			},
 			WatchFunc: func(options unversioned.ListOptions) (watch.Interface, error) {
 				return kubeClient.Services(api.NamespaceAll).Watch(options)
@@ -251,7 +251,7 @@ func NewMainKubelet(
 		fieldSelector := fields.Set{client.ObjectNameField: nodeName}.AsSelector()
 		listWatch := &cache.ListWatch{
 			ListFunc: func() (runtime.Object, error) {
-				return kubeClient.Nodes().List(labels.Everything(), fieldSelector)
+				return kubeClient.Nodes().List(labels.Everything(), fieldSelector, unversioned.ListOptions{})
 			},
 			WatchFunc: func(options unversioned.ListOptions) (watch.Interface, error) {
 				options.FieldSelector.Selector = fieldSelector
